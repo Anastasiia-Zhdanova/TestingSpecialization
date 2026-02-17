@@ -1,0 +1,19 @@
+spring:
+  artemis:
+    mode: embedded
+  cloud:
+    discovery:
+      enabled: false
+eureka:
+  client:
+    enabled: false
+de:
+  flapdoodle:
+    mongodb:
+      embedded:
+        version: 6.0.9
+
+app:
+  security:
+    jwt:
+      secret: "TestSecretKeyForIntegrationTestsOnly12345678901234567890123456789012"

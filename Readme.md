@@ -8,50 +8,46 @@ The system consists of the following microservices:
 
 1.  **Discovery Server (Eureka):** Service registry for dynamic service discovery.
 2.  **Trainer Workload Service:** Handles workload calculations and analytics using **MongoDB** (Embedded).
-3.  **Gym Main Service:** The core application handling users, authentication, and trainings using **PostgreSQL**. Communicates with Workload Service via **OpenFeign**.
+3.  **Gym Main Service:** The core application handling users, authentication, and trainings using **PostgreSQL**.
+4.  **Message Broker (ActiveMQ Artemis):** Facilitates asynchronous communication between the Main Service and the **Workload Service**.
+
+## 🚀 Messaging Implementation (Current Module)
+In this module, direct REST communication between services was replaced with **asynchronous communication** using **ActiveMQ Artemis**.
+* **Asynchronous Flow**: When a training session is created in the Main Service, it sends a JSON message to the trainer-workload-queue.
+* **Decoupling**: The Main Service no longer waits for the Workload Service to finish processing.
+* **Reliability**: The use of a message broker ensures that workload updates are processed even if the Workload Service is temporarily unavailable.
 
 ## 🛠 Tech Stack
 
-* **Java:** 17+
+* **Java:** 19+
 * **Spring Boot:** 3.2.x
 * **Spring Cloud:** 2023.x (Eureka, OpenFeign, Circuit Breaker/Resilience4j)
+* **Messaging:** ActiveMQ Artemis (Starter Artemis)
 * **Databases:**
     * PostgreSQL (Main Service)
     * MongoDB Embedded (Workload Service)
 * **Security:** Spring Security + JWT (Shared Secret Key)
 * **Build Tool:** Maven (Multi-module)
-* **Testing:** JUnit 5, Mockito, Spring Boot Test
+* **Testing:** JUnit 5, Mockito, Spring Boot Test, Awaitility
 
 ## ⚙️ Prerequisites
 
-Before running the application, ensure you have:
-
-* Java JDK 17 or higher installed.
-* Maven installed.
-* **PostgreSQL** installed and running locally on port `5432`.
-* A PostgreSQL database named `gym_db` created.
-
-*(Note: MongoDB is embedded, so no external installation is required for the Workload Service).*
+* **Docker:** Required to run the ActiveMQ Artemis broker locally.
+* **PostgreSQL:** Installed and running locally on port 5432 with a database named gym_db.
+* **Java JDK 19** or higher.
 
 ## 🚀 Getting Started
 
-### 1. Configuration
-Ensure your `gym-main-service/src/main/resources/application.yml` has the correct PostgreSQL credentials:
-
-```yaml
-spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5432/gym_db
-    username: your_postgres_username
-    password: your_postgres_password
-   ```
-
-### 2. Build the Project
-Run the following command from the root directory to build all modules:
+### 1. Run ActiveMQ Artemis (via Docker)
+Start the message broker using the following command:
+```Bash
+docker run -d --name artemis -p 61616:61616 -p 8161:8161 -e ARTEMIS_USER=admin -e ARTEMIS_PASSWORD=admin apache/activemq-artemis:latest-alpine
 ```
-Bash
-mvn clean install
-```
+
+### 2. Configuration
+The system supports multiple environments via Spring profiles.
+* **Native Mode:** Connects to the external broker (Docker).
+* **Embedded Mode:** Used in integration tests to provide an In-Memory broker.
 
 ### 3. Running the Services (Order Matters!)
    You must start the services in the following order to ensure proper registration:

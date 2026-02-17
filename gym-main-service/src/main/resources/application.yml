@@ -12,6 +12,14 @@ spring:
     init.mode: always
   application:
     name: gym-main-service # Чтобы в Eureka он был виден под нормальным именем
+  artemis:
+    mode: native
+    broker-url: tcp://localhost:61616
+    user: admin
+    password: admin
+  jms:
+    template:
+      default-destination: trainer-workload-queue
 
   # JPA/Hibernate settings
   jpa:

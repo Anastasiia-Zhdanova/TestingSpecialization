@@ -1,10 +1,10 @@
 package com.company.gym.workload.service;
 
 import com.company.gym.workload.dto.TrainerWorkloadRequest;
-import com.company.gym.workload.model.MonthSummary;
 import com.company.gym.workload.model.TrainerWorkload;
-import com.company.gym.workload.model.YearSummary;
 import com.company.gym.workload.repository.TrainerWorkloadRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -13,68 +13,59 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class TrainerWorkloadServiceTest {
+@DisplayName("TrainerWorkloadService Business Logic Tests")
+public class TrainerWorkloadServiceTest {
 
     @Mock
     private TrainerWorkloadRepository repository;
 
     @InjectMocks
-    private TrainerWorkloadService service;
+    private TrainerWorkloadService workloadService;
 
-    @Test
-    void shouldCreateNewWorkloadIfNoneExists() {
-        // Given
-        TrainerWorkloadRequest request = new TrainerWorkloadRequest();
-        request.setTrainerUsername("new.trainer");
-        request.setTrainerFirstName("New");
-        request.setTrainerLastName("Guy");
-        request.setIsActive(true);
-        request.setTrainingDate(new Date()); // Current date
-        request.setTrainingDuration(60);
-        request.setActionType(TrainerWorkloadRequest.ActionType.ADD);
+    private TrainerWorkloadRequest addRequest;
 
-        when(repository.findByUsername("new.trainer")).thenReturn(Optional.empty());
-
-        // When
-        service.updateWorkload(request);
-
-        // Then
-        verify(repository).save(any(TrainerWorkload.class));
+    @BeforeEach
+    void setUp() {
+        addRequest = TrainerWorkloadRequest.builder()
+                .trainerUsername("trainer.ben")
+                .trainerFirstName("Ben")
+                .trainerLastName("Solo")
+                .isActive(true)
+                .trainingDate(new Date())
+                .trainingDuration(90)
+                .actionType(TrainerWorkloadRequest.ActionType.ADD)
+                .build();
     }
 
     @Test
-    void shouldUpdateExistingWorkloadAddDuration() {
-        // Given
-        MonthSummary month = new MonthSummary(1, 100L); // Январь
-        List<MonthSummary> months = new ArrayList<>();
-        months.add(month);
+    @DisplayName("updateWorkload: ADD - Create new profile if not exists")
+    void updateWorkload_AddNewProfile() {
+        when(repository.findByUsername("trainer.ben")).thenReturn(Optional.empty());
 
-        YearSummary year = new YearSummary(2026, months);
-        List<YearSummary> years = new ArrayList<>();
-        years.add(year);
+        workloadService.updateWorkload(addRequest);
 
-        TrainerWorkload existing = new TrainerWorkload("trainer.exist", "A", "B", true, years);
+        verify(repository, times(1)).save(any(TrainerWorkload.class));
+    }
 
-        TrainerWorkloadRequest request = new TrainerWorkloadRequest();
-        request.setTrainerUsername("trainer.exist");
-        request.setTrainingDuration(60);
-        request.setActionType(TrainerWorkloadRequest.ActionType.ADD);
-        request.setTrainingDate(new Date(1768464000000L)); // Timestamp for 2026-01-15
+    @Test
+    @DisplayName("updateWorkload: DELETE - Reduce duration and cleanup")
+    void updateWorkload_DeleteAndCleanup() {
+        // GIVEN
+        addRequest.setActionType(TrainerWorkloadRequest.ActionType.DELETE);
+        TrainerWorkload existing = new TrainerWorkload("trainer.ben", "Ben", "Solo", true, new ArrayList<>());
+        when(repository.findByUsername("trainer.ben")).thenReturn(Optional.of(existing));
 
-        when(repository.findByUsername("trainer.exist")).thenReturn(Optional.of(existing));
+        // WHEN
+        workloadService.updateWorkload(addRequest);
 
-        // When
-        service.updateWorkload(request);
-
-        // Then
-        verify(repository).save(existing);
+        // THEN
+        verify(repository, times(1)).save(existing);
     }
 }

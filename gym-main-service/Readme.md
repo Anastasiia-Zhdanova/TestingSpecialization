@@ -1,6 +1,70 @@
 # 🏋️ Gym Management REST API (Spring Boot)
 
 ## 📝 Project Overview
+# Gym CRM Main Service
+The core microservice of the Gym CRM System, responsible for user management, training scheduling, and authentication. This service orchestrates the system's business logic and communicates asynchronously with the Workload Service.
+
+## 🏗 Microservices Architecture
+This service is part of a distributed system:
+
+* ***Gym Main Service (this one):*** Processes core logic and training creation.
+* ***Discovery Server:*** Eureka-based service registry.
+* ***Trainer Workload Service:*** Handles trainer statistics via MongoDB.
+* ***Message Broker:*** ActiveMQ Artemis for asynchronous communication.
+
+## 🚀 Messaging Features
+* ***Asynchronous Processing:*** Replaced legacy REST/OpenFeign calls with JMS messages to improve performance and reliability.
+* ***ActiveMQ Artemis Integration:*** Fully managed by Spring Boot Starter Artemis with Jakarta EE support.
+* ***JSON Serialization:*** Reliable data exchange using MappingJackson2MessageConverter with custom type ID mappings to handle cross-service DTO package differences.
+
+## 🛠 Tech Stack
+* Java: 19
+* Spring Boot: 3.2.5
+* Database: PostgreSQL
+* Messaging: ActiveMQ Artemis (Starter)
+* Security: Spring Security + JWT (Externalized Configuration)
+* Monitoring: Spring Boot Actuator
+
+## ⚙️ Configuration & Security
+To enhance security, sensitive data like the JWT Secret Key has been externalized from the source code.
+### Environment Variables
+You can override default settings using environment variables:
+* JWT_SECRET: Secret key for HMAC-SHA signatures (min. 32 chars).
+* ARTEMIS_URL: URL of the ActiveMQ broker (default: tcp://localhost:61616).
+
+## 🚀 Getting Started
+1. Prerequisites
+    * ***Docker:*** To run the message broker.
+    * ***PostgreSQL:*** Database gym_db should be available on port 5432.
+    * ***Eureka Server:*** Must be running on port 8761.
+
+2. Run ActiveMQ Broker
+   ```Bash
+   docker run -d --name artemis -p 61616:61616 -p 8161:8161 -e ARTEMIS_USER=admin -e ARTEMIS_PASSWORD=admin apache/activemq-artemis:latest-alpine
+   ```
+3. Run the Application
+   ```Bash
+   mvn spring-boot:run
+   ```
+## 🔌 API Guide
+### Authentication
+```POST /api/v1/auth/login```
+
+* Exchange credentials for a JWT.
+* The secret is managed via ***application.yml*** and injected into ***JwtService***.
+
+### Training Management
+```POST /api/v1/trainings```
+
+* ***Input:*** Training details (Trainee, Trainer, Date, Duration).
+* ***Process:*** 1. Saves training to PostgreSQL. 2. Sends a TrainerWorkloadRequest to trainer-workload-queue.
+* ***Response:*** 200 OK (Async acknowledgment).
+
+## 🛡 Fault Tolerance
+* ***Decoupling:*** If the Workload Service is down, messages stay safely in the Artemis queue until the service recovers.
+* ***Transaction ID (TID):*** All logs include a unique TID to trace a single request across the entire microservice landscape.
+
+## 📝 Project Overview
 
 This project is an enterprise-ready, multi-layered Java application built with **Spring Boot 3** and **Hibernate/JPA**. It provides a comprehensive RESTful API for managing Trainees, Trainers, and Training sessions.
 
@@ -14,25 +78,37 @@ The system is designed for high availability and observability, featuring:
 
 ---
 
+### Key Architectural Pillars:
+* ***Asynchronous Messaging:*** Integrated ActiveMQ Artemis to handle inter-service communication. The system utilizes a fire-and-forget pattern for updating trainer workloads, ensuring the core service remains highly responsive.
+* ***Security:*** Secured by Spring Security with stateless JWT (JSON Web Tokens) authentication. It includes Brute Force Protection with account locking mechanisms. Critical security credentials (like JWT secrets) are externalized for production safety.
+* ***Polyglot Persistence: * PostgreSQL:*** Used by the Main Service for complex relational data and transactional integrity. 
+  * MongoDB: Used by the Workload Service for high-performance aggregation and storage of trainer statistics.
+
+* ***Observability & Tracing: * Spring Boot Actuator*** for real-time health monitoring.
+
+* ***Prometheus*** integration for performance metrics.
+
+* ***Custom AOP Logging:*** Implements a Transaction ID (TID) tracing system that tracks requests across microservice boundaries via JMS headers.
+
+* ***Infrastructure: * Service Discovery:*** Eureka Server for dynamic registration.
+
+* ***Containerization:*** Full support for running infrastructure (ActiveMQ) via Docker.
+
+* ***Engineering Excellence:*** Adheres to SOLID principles, utilizing Design Patterns (Builder, Factory, Proxy) and ensuring high test coverage with FIRST-compliant Unit and Integration tests.
+___
+
 ## 🏗️ Project Structure & Key Components
 
 This project follows a strict layered architecture to ensure separation of concerns.
 
-| Layer | Package/File | Key Components (Files)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| :--- | :--- |:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Core** | `GymApplication.java` | Main Spring Boot application entry point (`@SpringBootApplication`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| **Configuration** | `config` | `WebSecurityConfig.java` (Manages HTTP security, protected routes).<br> `JwtAuthenticationFilter.java` (Intercepts requests to validate JWT tokens).<br>`CustomUsernamePasswordAuthenticationFilter.java` (Handles login logic).<br>`LoggingAspect.java` (AOP for request/response logging via MDC).<br>`SwaggerConfig.java` (OpenAPI documentation setup).<br>`TrainingTypeInitialLoadHealthIndicator.java` (Custom Actuator check 2).                                                                                                                        |
-| **Security** | `security` | `JwtService.java` (Generates, signs, and validates JWT tokens).<br>`UserDetailsServiceImpl.java` (Loads user data from DB for Spring Security).                                                                                                                                                                                                                                                                                                                                                                                                                |
-| **API (Controllers)** | `controller` | `AuthenticationController.java` (Handles registration, login, password change).<br>`TraineeController.java` (Manages Trainee profiles, trainers, and trainings).<br>`TrainerController.java` (Manages Trainer profiles, trainees, and trainings).<br>`TrainingController.java` (Handles creation of new training sessions).                                                                                                                                                                                                                                    |
-| **Business Logic** | `service` | `AuthService.java` (Password hashing, user authentication, username generation).<br>`TraineeService.java` / `TrainerService.java` (Core profile logic).<br>`TraineeServiceFacade.java` / `TrainerServiceFacade.java` (Facades for controllers).<br>`TrainingService.java` (Business logic for creating trainings).<br>`TrainingTypeService.java` (Manages training specializations).                                                                                                                                                                           |
-| **Data Contracts (DTO)** | `dto/request` | `LoginRequest.java`<br>`ChangePasswordRequest.java`<br>`TraineeRegistrationRequest.java`<br>`TrainerRegistrationRequest.java`<br>`TraineeProfileUpdateRequest.java`<br>`TrainerProfileUpdateRequest.java`<br>`UserStatusUpdateRequest.java`<br>`UpdateTraineeTrainersRequest.java`<br>`TrainingRequest.java`                                                                                                                                                                                                                                                   |
-| | `dto/response` | `AuthResponse.java`<br>`UserCredentialsResponse.java`<br>`TraineeProfileResponse.java`<br>`TraineeShortResponse.java`<br>`TrainerProfileResponse.java`<br>`TrainerShortResponse.java`<br>`TrainingListResponse.java`<br>`TrainingTypeResponse.java`                                                                                                                                                                                                                                                                                                            |
-| **Mapping** | `mapper` | `TraineeMapper.java` / `TrainerMapper.java` (MapStruct interfaces for DTO/Entity conversion).                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| **Data Access** | `dao` | `GenericDAO.java` (JPA `EntityManager` base class).<br>`UserDAO.java`, `TraineeDAO.java`, `TrainerDAO.java`, `TrainingDAO.java`, `TrainingTypeDAO.java`.                                                                                                                                                                                                                                                                                                                                                                                                       |
-| **Persistence** | `entity` | `User.java` (Base profile), `Trainee.java`, `Trainer.java`, `Training.java`, `TrainingType.java`.                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| **Error Handling** | `exception` | `GlobalExceptionHandler.java` (`@ControllerAdvice` to handle exceptions).<br>`AuthenticationException.java`, `NotFoundException.java`, `ValidationException.java`.                                                                                                                                                                                                                                                                                                                                                                                             |
-| **Utilities** | `util` | `PasswordUtil.java` (BCrypt hashing), `UsernameUtil.java`, `UserCredentialGenerator.java`, `QueryUtil.java`.                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| **Resources** | `resources` | `application.yml` (Base config), `application-{profile}.yml`, `data.sql`, `logback.xml`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Layer                    | Key Components (Files) | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+|:-------------------------| :--- |:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| *API (Controllers)**                      | `AuthenticationController`, `TraineeController`, `TrainerController`, `TrainingController` | REST endpoints for user lifecycle and training scheduling.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| **Messaging**        | `JmsConfig`, `TrainingService` | Handles asynchronous message production to ActiveMQ Artemis.                                                                                                                        |
+| **Business Logic**             | `AuthService`, `TraineeService`, `TrainerService`, `TrainingService` | Core business rules, credential generation, and transaction management.                                                                                                                                                                                                                                                                                                                                                                                                                |
+| **Security**    | `WebSecurityConfig`, `JwtService`, `JwtAuthenticationFilter` | Externalized JWT security and stateless authentication.                                                                                                                                                                                                                             |
+| **Data Access**       | `UserDAO`, `TraineeDAO`, `TrainerDAO`, `TrainingDAO` | JPA/EntityManager-based access to PostgreSQL.                                                                                                                                                                         |
+| **Persistence** | `User`, `Trainee`, `Trainer`, `Training`, `TrainingType` | Relational entities with JPA mappings.                                                                                                                                                                                                                                                  |
 
 ---
 
@@ -40,7 +116,7 @@ This project follows a strict layered architecture to ensure separation of conce
 
 ### Prerequisites
 
-1.  **Java Development Kit (JDK) 17+**
+1.  **Java Development Kit (JDK) 19+**
 2.  **Maven 3.6+**
 3.  **PostgreSQL Server** (Required for `dev/stg/prod` profiles)
 4.  **Redis Server** (Required for session management, e.g., `localhost:6379` for local)
@@ -191,4 +267,4 @@ Authentication is handled via **Redis Sessions**. After a successful `POST /logi
 1. Cover code with unit tests. Code should contain proper logging.
 2. Pay attention that each environment - different db properties.
 3. All functions except Create Trainer/Trainee profile. Should be executed only after Trainee/Trainer authentication (on this step should be checked
-username and password matching). 
+username and password matching).
