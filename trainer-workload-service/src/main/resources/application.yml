@@ -21,8 +21,7 @@ eureka:
 de:
   flapdoodle:
     mongodb:
-      embedded:
-        version: 6.0.9
+      uri: mongodb://localhost:27017/gym_workload_db
 
 app:
   security:
