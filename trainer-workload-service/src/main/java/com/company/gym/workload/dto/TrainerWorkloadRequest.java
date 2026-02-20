@@ -19,6 +19,7 @@ public class TrainerWorkloadRequest {
     private Date trainingDate;
     private Integer trainingDuration;
     private ActionType actionType;
+    private String transactionId;
 
     public enum ActionType {
         ADD, DELETE

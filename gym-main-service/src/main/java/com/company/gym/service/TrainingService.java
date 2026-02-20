@@ -104,6 +104,7 @@ public class TrainingService {
 
     private TrainerWorkloadRequest createWorkloadRequest(Training training, TrainerWorkloadRequest.ActionType actionType) {
         Trainer trainer = training.getTrainer();
+        String transactionId = org.slf4j.MDC.get("transactionId");
         return TrainerWorkloadRequest.builder()
                 .trainerUsername(trainer.getUser().getUsername())
                 .trainerFirstName(trainer.getUser().getFirstName())
@@ -112,6 +113,7 @@ public class TrainingService {
                 .trainingDate(training.getTrainingDate())
                 .trainingDuration(training.getTrainingDuration())
                 .actionType(actionType)
+                .transactionId(transactionId)
                 .build();
     }
 }

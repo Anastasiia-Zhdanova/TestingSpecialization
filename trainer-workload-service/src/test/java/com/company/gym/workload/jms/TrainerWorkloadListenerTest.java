@@ -2,13 +2,16 @@ package com.company.gym.workload.jms;
 
 import com.company.gym.workload.dto.TrainerWorkloadRequest;
 import com.company.gym.workload.service.TrainerWorkloadService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.MDC;
 
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
@@ -22,32 +25,38 @@ public class TrainerWorkloadListenerTest {
     @InjectMocks
     private TrainerWorkloadListener workloadListener;
 
+    @AfterEach
+    void tearDown() {
+        MDC.clear();
+    }
+
     @Test
-    @DisplayName("processWorkload: Success - Should call service when message received")
+    @DisplayName("processWorkload: Success - Should handle MDC and call service")
     void processWorkload_Success() {
-        // GIVEN
         TrainerWorkloadRequest request = TrainerWorkloadRequest.builder()
                 .trainerUsername("trainer.test")
+                .transactionId("test-txn-123")
                 .actionType(TrainerWorkloadRequest.ActionType.ADD)
                 .trainingDuration(60)
                 .build();
 
-        // WHEN
         workloadListener.processWorkload(request);
 
-        // THEN
         verify(workloadService, times(1)).updateWorkload(request);
+        assertNull(MDC.get("transactionId"), "MDC should be cleared after processing");
     }
 
     @Test
-    @DisplayName("processWorkload: Failure - Should throw exception to trigger DLQ/Redelivery")
+    @DisplayName("processWorkload: Failure - Should throw exception to trigger DLQ and clear MDC")
     void processWorkload_ErrorHandling() {
-        // GIVEN
         TrainerWorkloadRequest request = new TrainerWorkloadRequest();
+        request.setTrainerUsername("test.user");
+
         doThrow(new RuntimeException("DB Error")).when(workloadService).updateWorkload(any());
 
-        // WHEN & THEN
         assertThrows(RuntimeException.class, () -> workloadListener.processWorkload(request));
+
         verify(workloadService, times(1)).updateWorkload(request);
+        assertNull(MDC.get("transactionId"), "MDC should be cleared even after exception");
     }
 }

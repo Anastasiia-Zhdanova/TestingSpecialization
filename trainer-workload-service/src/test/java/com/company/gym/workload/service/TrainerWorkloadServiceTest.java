@@ -13,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -67,5 +68,29 @@ public class TrainerWorkloadServiceTest {
 
         // THEN
         verify(repository, times(1)).save(existing);
+    }
+
+    @Test
+    @DisplayName("searchByName: Should call repository and return list of workloads")
+    void searchByName_ShouldReturnListOfWorkloads() {
+        // GIVEN
+        String firstName = "Ben";
+        String lastName = "Solo";
+        TrainerWorkload mockWorkload = new TrainerWorkload(
+                "trainer.ben", firstName, lastName, true, new ArrayList<>()
+        );
+        List<TrainerWorkload> expectedList = List.of(mockWorkload);
+
+        when(repository.findByFirstNameAndLastName(firstName, lastName)).thenReturn(expectedList);
+
+        // WHEN
+        List<TrainerWorkload> actualList = workloadService.searchByName(firstName, lastName);
+
+        // THEN
+        assertNotNull(actualList);
+        assertEquals(1, actualList.size());
+        assertEquals("trainer.ben", actualList.get(0).getUsername());
+
+        verify(repository, times(1)).findByFirstNameAndLastName(firstName, lastName);
     }
 }
