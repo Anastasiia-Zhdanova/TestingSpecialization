@@ -11,7 +11,7 @@ This service operates completely asynchronously. It listens for `TrainerWorkload
 * **Database:** MongoDB (Spring Data MongoDB)
 * **Messaging:** ActiveMQ Artemis (JMS Consumer)
 * **Security:** Spring Security + JWT Validation
-* **Testing:** JUnit 5, Mockito, Flapdoodle Embedded MongoDB, Awaitility
+* **Testing:** JUnit 5, Mockito, Cucumber (BDD), Flapdoodle Embedded MongoDB, Awaitility
 
 ## 🚀 Key Features & Task Implementation
 
@@ -35,12 +35,23 @@ Implements a comprehensive, non-sensitive logging strategy utilizing **MDC (Mapp
 * **Transaction Level:** Implemented in the `TrainerWorkloadListener`. It extracts the `transactionId` from the JMS message (or generates a fallback UUID) to trace the start, completion, and overarching errors of a single message lifecycle.
 * **Operation Level:** Implemented in the `TrainerWorkloadService`. Provides detailed `DEBUG` and `INFO` traces of specific database operations (e.g., adding hours, removing empty months, creating new profiles).
 
-## 🧪 Testing & Quality Assurance
-The service maintains a strict adherence to **FIRST principles** and Clean Code (SOLID, KISS, DRY):
-* **Unit Tests:** Covers business logic (`TrainerWorkloadService`) and listener behavior (`TrainerWorkloadListener`) using Mockito.
-* **Integration Tests:** The `WorkloadIntegrationTest` verifies the full end-to-end flow from the ActiveMQ template to the actual MongoDB save operation, utilizing **Awaitility** for asynchronous assertions.
-* **Embedded DB:** Uses `de.flapdoodle.embed.mongo` to ensure tests are isolated, repeatable, and run without requiring external database infrastructure.
-* **Coverage:** Achieves **>80%** line coverage (verified via Jacoco).
+## 🧪 Testing & Quality Assurance (BDD)
+The service maintains a strict adherence to **FIRST principles** and Clean Code, utilizing **Behavior-Driven Development (BDD)** methodologies with the **Cucumber** framework. Tests are executed against an in-memory embedded database (Flapdoodle MongoDB) to ensure complete isolation.
+
+* **Component Tests (`@component`, `@workload-service`)**: Validates the core business logic in isolation. Includes positive scenarios (calculating monthly durations, creating profiles) and negative edge cases (handling requests with missing mandatory fields).
+* **JMS Integration Tests (`@integration`, `@jms`)**: Tests the full asynchronous messaging flow. A test message is published directly to the Artemis queue, and the **Awaitility** library is used to asynchronously poll the MongoDB database until the expected workload record appears. This proves that the `@JmsListener` successfully consumed, parsed, and processed the event.
+* **Coverage:** Achieves **>80%** line coverage (verified via Jacoco plugin).
+
+**Running BDD Tests via CLI:**
+Tests can be executed selectively using Cucumber tags directly from the command line:
+
+```bash
+# Run specifically integration tests
+mvn test -Dtest=CucumberTestRunner -Dcucumber.filter.tags="@integration"
+
+# Run specifically component/functional tests
+mvn test -Dtest=CucumberTestRunner -Dcucumber.filter.tags="@workload-service"
+
 
 ## ⚙️ How to Run
 

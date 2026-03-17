@@ -12,16 +12,52 @@ This service is part of a distributed system:
 * ***Trainer Workload Service:*** Handles trainer statistics via MongoDB.
 * ***Message Broker:*** ActiveMQ Artemis for asynchronous communication.
 
+### Key Architectural Pillars:
+* ***Asynchronous Messaging:*** Integrated ActiveMQ Artemis to handle inter-service communication. The system utilizes a fire-and-forget pattern for updating trainer workloads, ensuring the core service remains highly responsive.
+* ***Security:*** Secured by Spring Security with stateless JWT (JSON Web Tokens) authentication. It includes Brute Force Protection with account locking mechanisms.
+* ***Polyglot Persistence:*** * PostgreSQL: Used by the Main Service for complex relational data and transactional integrity.
+   * MongoDB: Used by the Workload Service for high-performance aggregation and storage of trainer statistics.
+* ***Observability & Tracing:*** Spring Boot Actuator for real-time health monitoring and Prometheus integration for performance metrics.
+* ***Custom AOP Logging:*** Implements a Transaction ID (TID) tracing system that tracks requests across microservice boundaries via JMS headers.
+
+---
+
+## 🧪 Testing & Quality Assurance (BDD)
+The application ensures high reliability through comprehensive automated testing, utilizing **Behavior-Driven Development (BDD)** methodologies with the **Cucumber** framework.
+
+* **Component Tests (`@component`)**: Validates the isolated behavior of the API. For example, verifying that authorized users can successfully access protected endpoints (e.g., retrieving the training types list with `200 OK`).
+* **Security & NFRs (`@security`, `@negative`)**: Non-Functional Requirements, such as JWT authentication and endpoint protection, are rigorously tested (e.g., expecting `403 Forbidden` when attempting to access secured endpoints without a valid token).
+
+**Running BDD Tests via CLI:**
+Tests can be executed selectively using Cucumber tags directly from the command line:
+```bash
+# Run component tests
+mvn test -Dtest=CucumberTestRunner -Dcucumber.filter.tags="@component"
+
+# Run security/NFR tests
+mvn test -Dtest=CucumberTestRunner -Dcucumber.filter.tags="@security"
+
+
 ## 🚀 Messaging Features
 * ***Asynchronous Processing:*** Replaced legacy REST/OpenFeign calls with JMS messages to improve performance and reliability.
 * ***ActiveMQ Artemis Integration:*** Fully managed by Spring Boot Starter Artemis with Jakarta EE support.
 * ***JSON Serialization:*** Reliable data exchange using MappingJackson2MessageConverter with custom type ID mappings to handle cross-service DTO package differences.
+
+## 🛡 Fault Tolerance & Idempotency
+To build a resilient enterprise system, the application implements strict fault-tolerance and idempotency patterns:
+
+* ***Idempotent Consumer Pattern (Messaging):*** ActiveMQ guarantees "at-least-once" delivery, which can lead to duplicate messages during network partitions. To prevent double-counting of trainer workloads, the Main Service generates a unique transactionId (via AOP/MDC) for every request. The Workload Service acts as an Idempotent Consumer by checking and saving this transactionId in a dedicated MongoDB collection (processed_transactions). Duplicate messages are safely ignored.
+
+* ***REST API Idempotency:*** All PUT and DELETE endpoints strictly adhere to REST idempotency standards, ensuring that multiple identical requests yield the same system state without causing side effects or 500 Server Errors.
+
+* ***Decoupling:*** If the Workload Service goes offline, messages remain safely queued in Artemis until the service recovers, ensuring zero data loss.
 
 ## 🛠 Tech Stack
 * Java: 19
 * Spring Boot: 3.2.5
 * Database: PostgreSQL
 * Messaging: ActiveMQ Artemis (Starter)
+* Testing: JUnit 5, Mockito, Cucumber (BDD), Awaitility, Testcontainers
 * Security: Spring Security + JWT (Externalized Configuration)
 * Monitoring: Spring Boot Actuator
 
