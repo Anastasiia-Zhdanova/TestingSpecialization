@@ -1,18 +1,10 @@
 package com.company.gym.security;
 
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.io.Decoders;
-import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.test.util.ReflectionTestUtils;
-
-import java.security.Key;
-import java.util.Date;
-import java.util.HashMap;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -21,13 +13,11 @@ public class JwtServiceTest {
     private JwtService jwtService;
     private UserDetails userDetails;
 
-    private final String SECRET_KEY = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970";
-
     @BeforeEach
     void setUp() {
         jwtService = new JwtService();
 
-        ReflectionTestUtils.setField(jwtService, "secretKey", SECRET_KEY);
+        ReflectionTestUtils.setField(jwtService, "secretKey", "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970");
         ReflectionTestUtils.setField(jwtService, "jwtExpiration", 1000L * 60 * 60); // 1 час
 
         userDetails = User.withUsername("test.user")

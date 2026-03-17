@@ -1,20 +1,22 @@
 package com.company.gym.workload.dto;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.json.JsonTest;
 import org.springframework.boot.test.json.JacksonTester;
-import org.springframework.boot.test.json.JsonContent;
 
 import java.util.Date;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@JsonTest
 class TrainerWorkloadRequestTest {
 
-    @Autowired
     private JacksonTester<TrainerWorkloadRequest> json;
+
+    @BeforeEach
+    public void setup() {
+        JacksonTester.initFields(this, new ObjectMapper());
+    }
 
     @Test
     void testSerialize() throws Exception {
@@ -24,7 +26,7 @@ class TrainerWorkloadRequestTest {
         request.setActionType(TrainerWorkloadRequest.ActionType.ADD);
         request.setTrainingDate(new Date());
 
-        JsonContent<TrainerWorkloadRequest> result = json.write(request);
+        var result = json.write(request);
 
         assertThat(result).extractingJsonPathStringValue("$.trainerUsername").isEqualTo("test.user");
         assertThat(result).extractingJsonPathStringValue("$.actionType").isEqualTo("ADD");

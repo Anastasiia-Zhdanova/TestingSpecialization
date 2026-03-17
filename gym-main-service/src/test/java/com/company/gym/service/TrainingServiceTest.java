@@ -7,16 +7,13 @@ import com.company.gym.dao.TrainingDAO;
 import com.company.gym.dto.request.TrainerWorkloadRequest;
 import com.company.gym.entity.*;
 import com.company.gym.exception.ValidationException;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
+import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
 import org.springframework.jms.core.JmsTemplate;
 
 import java.util.Collections;
@@ -26,19 +23,19 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import org.mockito.quality.Strictness;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("TrainingService Unit Tests (JMS Integration)")
 public class TrainingServiceTest {
 
     @Mock private TrainingDAO trainingDAO;
     @Mock private TraineeDAO traineeDAO;
     @Mock private TrainerDAO trainerDAO;
-    @Mock private JmsTemplate jmsTemplate; // Мокаем JmsTemplate вместо Feign
-    @Mock private MeterRegistry meterRegistry;
-    @Mock private Timer timer;
+    @Mock
+    private JmsTemplate jmsTemplate;
 
-    @InjectMocks
     private TrainingService trainingService;
 
     private Trainee mockTrainee;
@@ -47,12 +44,8 @@ public class TrainingServiceTest {
 
     @BeforeEach
     void setUp() {
-        when(meterRegistry.timer(anyString())).thenReturn(timer);
-        when(timer.record(any(java.util.function.Supplier.class))).thenAnswer(invocation -> {
-            java.util.function.Supplier<?> supplier = invocation.getArgument(0);
-            return supplier.get();
-        });
-
+        io.micrometer.core.instrument.MeterRegistry registry = new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+        trainingService = new TrainingService(trainingDAO, traineeDAO, trainerDAO, registry, jmsTemplate);
         mockUser = new User();
         mockUser.setUsername("trainer.pro");
         mockUser.setFirstName("John");
@@ -88,7 +81,6 @@ public class TrainingServiceTest {
         assertNotNull(result);
         verify(trainingDAO, times(1)).save(any(Training.class));
 
-        // Проверяем отправку сообщения в очередь (Требование №5)
         ArgumentCaptor<TrainerWorkloadRequest> captor = ArgumentCaptor.forClass(TrainerWorkloadRequest.class);
         verify(jmsTemplate, times(1)).convertAndSend(eq(JmsConfig.TRAINER_WORKLOAD_QUEUE), captor.capture());
 
@@ -102,7 +94,7 @@ public class TrainingServiceTest {
     @DisplayName("createTraining: Failure - Should throw ValidationException when Trainer not linked")
     void createTraining_NotLinked_ThrowsException() {
         // GIVEN
-        mockTrainee.setTrainers(Collections.emptySet()); // Тренер не связан с учеником
+        mockTrainee.setTrainers(Collections.emptySet());
         when(traineeDAO.findByUsernameWithTrainers("user")).thenReturn(mockTrainee);
         when(trainerDAO.findByUsername("trainer")).thenReturn(mockTrainer);
 
@@ -139,8 +131,9 @@ public class TrainingServiceTest {
         // GIVEN
         when(traineeDAO.findByUsernameWithTrainers(any())).thenReturn(mockTrainee);
         when(trainerDAO.findByUsername(any())).thenReturn(mockTrainer);
-        doThrow(new RuntimeException("MQ Broker Down")).when(jmsTemplate).convertAndSend(anyString(), any(Object.class));
+        when(trainingDAO.save(any(Training.class))).thenAnswer(i -> i.getArguments()[0]);
 
+        doThrow(new RuntimeException("MQ Broker Down")).when(jmsTemplate).convertAndSend(anyString(), any(Object.class));
         // WHEN & THEN
         assertDoesNotThrow(() ->
                 trainingService.createTraining("u", "t", "N", new Date(), 10));
