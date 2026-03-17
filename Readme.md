@@ -28,7 +28,7 @@ In this module, direct REST communication between services was replaced with **a
     * MongoDB Embedded (Workload Service)
 * **Security:** Spring Security + JWT (Shared Secret Key)
 * **Build Tool:** Maven (Multi-module)
-* **Testing:** JUnit 5, Mockito, Spring Boot Test, Awaitility
+* **Testing:** JUnit 5, Mockito, Spring Boot Test, Awaitility, Cucumber
 
 ## ⚙️ Prerequisites
 
