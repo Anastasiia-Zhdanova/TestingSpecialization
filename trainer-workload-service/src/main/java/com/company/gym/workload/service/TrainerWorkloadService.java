@@ -2,14 +2,17 @@ package com.company.gym.workload.service;
 
 import com.company.gym.workload.dto.TrainerWorkloadRequest;
 import com.company.gym.workload.model.MonthSummary;
+import com.company.gym.workload.model.ProcessedTransaction;
 import com.company.gym.workload.model.TrainerWorkload;
 import com.company.gym.workload.model.YearSummary;
+import com.company.gym.workload.repository.ProcessedTransactionRepository;
 import com.company.gym.workload.repository.TrainerWorkloadRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,8 +23,17 @@ import java.util.List;
 public class TrainerWorkloadService {
 
     private final TrainerWorkloadRepository repository;
+    private final ProcessedTransactionRepository transactionRepository;
 
     public void updateWorkload(TrainerWorkloadRequest request) {
+        String txId = request.getTransactionId();
+
+        // checking the idempotency (Idempotent Consumer)
+        if (txId != null && transactionRepository.existsById(txId)) {
+            log.warn("OPERATION: Message with transactionId {} already processed. Ignoring duplicate.", txId);
+            return;
+        }
+
         log.debug("OPERATION: Fetching or creating workload profile for trainer: {}", request.getTrainerUsername());
 
         TrainerWorkload workload = repository.findByUsername(request.getTrainerUsername())
@@ -82,10 +94,16 @@ public class TrainerWorkloadService {
 
         log.debug("OPERATION: Saving updated profile to MongoDB...");
         repository.save(workload);
+
+        // saving transaction in BD
+        if (txId != null) {
+            transactionRepository.save(new ProcessedTransaction(txId, LocalDateTime.now()));
+            log.debug("OPERATION: Saved transactionId {} to prevent future duplicates.", txId);
+        }
+
         log.info("Workload updated successfully.");
     }
 
-    //here I use first_last_name_idx
     public List<TrainerWorkload> searchByName(String firstName, String lastName) {
         log.info("Searching workloads for: {} {}", firstName, lastName);
         return repository.findByFirstNameAndLastName(firstName, lastName);
